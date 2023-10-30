@@ -1,5 +1,6 @@
 const bcryptjs = require('bcryptjs')
 const Users = require('../models/userModel')
+const crypto = require('crypto')
 
 const userControllers = {
 
@@ -8,6 +9,8 @@ const userControllers = {
 
         const { fullName, email, password, from, aplication } = req.body.userData
         const contraseñaHash = bcryptjs.hashSync(password, 10)
+        const emailVerify = false
+        const uniqueString = crypto.randomBytes(15).toString('hex')
         try {
             const userExist = await Users.findOne({ email })
 
@@ -20,10 +23,13 @@ const userControllers = {
                     })
                 }
                 else {
-
                     userExist.from.push(from)
                     userExist.password.push(contraseñaHash)
 
+                    if(from !== "signUp-form"){
+                       userExist.emailVerify = true 
+                    }
+                    
                     await userExist.save()
 
                     res.json({
@@ -35,23 +41,36 @@ const userControllers = {
 
             }
             else {
-
                 const nuevoUsuario = new Users({
                     fullName,
                     email,
                     password: [contraseñaHash],
                     from: [from],
-                    aplication
+                    aplication,
+                    emailVerify,
+                    uniqueString
                 })
 
-                await nuevoUsuario.save()
+                if (from === "signUp-form") {
 
-                res.json({
-                    success: true,
-                    from: from,
-                    message: " Felicitaciones creamos tu usuario y agregamos " + from + " a tus metodos para realizar signin"
-                })
+                    await nuevoUsuario.save()
+                    //Funcion que envia el mail
+                    res.json({
+                        success: true,
+                        from: from,
+                        message: " Revisa tu mail para validarlo y completar el sign up"
+                    })
+                }
+                else {
+                    nuevoUsuario.emailVerify = true
+                    await nuevoUsuario.save()
 
+                    res.json({
+                        success: true,
+                        from: from,
+                        message: " Felicitaciones creamos tu usuario y agregamos " + from + " a tus metodos para realizar signin"
+                    })
+                }
             }
 
 
@@ -72,7 +91,7 @@ const userControllers = {
                 res.json({
                     success: false,
                     from: from,
-                    message: "No has realizado sung Up con este email, realizalo antes de hacer sign IN"
+                    message: "No has realizado sing Up con este email, realizalo antes de hacer sign IN"
                 })
             } else {
                 const contraseñaCoincide = usuario.password.filter(pass => bcryptjs.compareSync(password, pass))
@@ -90,8 +109,8 @@ const userControllers = {
                         res.json({
                             success: true,
                             from,
-                            response: {dataUser},
-                            message: "Bienvenido Nueavamente " + dataUser.fullName
+                            response: { dataUser },
+                            message: "Bienvenido Nuevamente " + dataUser.fullName
                         })
 
                     } else {
@@ -104,28 +123,28 @@ const userControllers = {
                         res.json({
                             success: true,
                             from,
-                            response: {dataUser},
+                            response: { dataUser },
                             message: "No contaban con " + from + " dentro de tus metodos para realizar Sign In, pero tranquilo ya lo agregamos!!!!!"
                         })
                     }
                 } else {
-                    
+
                     if (contraseñaCoincide.length > 0) {
                         res.json({
                             success: true,
                             from,
-                            response: {dataUser},
+                            response: { dataUser },
                             message: "Bienvenido Nuevamente " + dataUser.fullName
                         })
 
                     } else {
-                        
-                            res.json({
-                                success: false,
-                                from,
-                                message: "El usuario o password no coinciden"
-                            })
-                        
+
+                        res.json({
+                            success: false,
+                            from,
+                            message: "El usuario o password no coinciden"
+                        })
+
 
                     }
                 }
