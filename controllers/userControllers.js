@@ -208,6 +208,31 @@ const userControllers = {
                 response: err
             })
         }
+    },
+    verifyMail: async (req, res)=>{
+        const {string} = req.params
+        const user = await Users.findOne({uniqueString:string})
+        
+
+        try{
+        if(user){
+            user.emailVerify = true
+            await user.save()
+            res.redirect("http://localhost:3000/signin")
+            // res.json({
+            //     success: false,
+            //     from: "verify",
+            //     message: "Mail verificado correctamente Felicitaciones!!!!!"
+            // })  
+            
+        }else{
+            res.json({
+                success: false,
+                from: "verify",
+                message: "Email del usuario no pudo ser verificado"
+            })
+        }
+    }catch(err){console.log(err)}
     }
 }
 
