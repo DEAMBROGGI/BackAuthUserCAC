@@ -4,6 +4,7 @@ const crypto = require('crypto')
 const nodemailer = require('nodemailer')
 const {google} = require('googleapis') 
 const OAuth2 = google.auth.OAuth2
+const jwt = require('jsonwebtoken')
 
 const sendMail = async (email, uniqueString)=>{
 
@@ -57,6 +58,7 @@ const userControllers = {
     SignUp: async (req, res) => {
 
         const { fullName, email, password, from, aplication } = req.body.userData
+        console.log(req.body.userData)
         const contraseñaHash = bcryptjs.hashSync(password, 10)
         const emailVerify = false
         const uniqueString = crypto.randomBytes(15).toString('hex')
@@ -132,7 +134,7 @@ const userControllers = {
     },
 
     SignIn: async (req, res) => {
-        const { email, password, from } = req.body.userData
+        const { email, password, from, aplication } = req.body.userData
 
         try {
             const usuario = await Users.findOne({ email })
@@ -149,17 +151,20 @@ const userControllers = {
                     id: usuario._id,
                     fullName: usuario.fullName,
                     email: usuario.email,
-                    from: from
+                    from: from,
+                    aplication
                 }
 
                 if (from !== 'signUp-form') {
 
                     if (contraseñaCoincide.length > 0) {
 
+                        const token = await jwt.sign({...dataUser}, process.env.SECRET_TOKEN, {expiresIn: "1h"})
+                        console.log(token)
                         res.json({
                             success: true,
                             from,
-                            response: { dataUser },
+                            response: {token, dataUser },
                             message: "Bienvenido Nuevamente " + dataUser.fullName
                         })
 
@@ -169,22 +174,25 @@ const userControllers = {
                         usuario.password.push(contraseñaHash)
 
                         await usuario.save()
-
+                        const token = jwt.sign({...dataUser}, process.env.SECRET_TOKEN, {expiresIn: "1h"})
                         res.json({
                             success: true,
                             from,
-                            response: { dataUser },
+                            response: { token, dataUser },
                             message: "No contaban con " + from + " dentro de tus metodos para realizar Sign In, pero tranquilo ya lo agregamos!!!!!"
                         })
                     }
                 } else {
 
                     if (contraseñaCoincide.length > 0) {
+
+                        const token = jwt.sign({...dataUser}, process.env.SECRET_TOKEN, {expiresIn: "1h"})
+                     
                         res.json({
                             success: true,
                             from,
-                            response: { dataUser },
-                            message: "Bienvenido Nuevamente " + dataUser.fullName
+                            response: { token, dataUser },
+                            message: "Bienvenido Nuevamente " + dataUser.fullName 
                         })
 
                     } else {
@@ -201,7 +209,8 @@ const userControllers = {
             }
 
         } catch (err) {
-            res.jsonj({
+            console.log(err)
+            res.json({
                 success: false,
                 from: from,
                 message: "Ups algo salio mal, reintentalo en unos minutos",
@@ -233,6 +242,20 @@ const userControllers = {
             })
         }
     }catch(err){console.log(err)}
+    },
+    verificarToken: (req, res)=>{
+        if(req.user){
+            res.json({
+                success: true,
+                response: { id:req.user.id, fullName:req.user.fullName, email:req.user.email, from:"token", aplication: req.user.aplication },
+                message: "Bienvenido Nuevamente " + req.user.fullName 
+            })
+        }else{
+            res.json({
+                success:false,
+                message: "Por favor realiza nuevamente signIn"
+            })
+        }
     }
 }
 
